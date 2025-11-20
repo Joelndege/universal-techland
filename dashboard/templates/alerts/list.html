@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h1>Alerts</h1>
+  <a class="btn btn-primary mb-3" href="{% url 'alerts:create' %}">Create Alert</a>
+  <ul class="list-group">
+    {% for a in alerts %}
+      <li class="list-group-item">
+        <strong>{{ a.title }}</strong> — {{ a.get_severity_display }} — {{ a.created_at|date:"Y-m-d H:i" }}
+      </li>
+    {% empty %}
+      <li class="list-group-item">No alerts found.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

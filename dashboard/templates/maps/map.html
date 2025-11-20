@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Map - Tourist Alert System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<style>
+#map { height: 90vh; border-radius: 15px; }
+.alert-popup {
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(30, 30, 40, 0.85);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.alert-popup:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 25px rgba(255,255,255,0.6);
+}
+.alert-title { font-weight: 700; font-size: 1em; margin-bottom: 5px; }
+.alert-priority { font-size: 0.85em; padding: 2px 6px; border-radius: 5px; }
+.priority-critical { background: #f5576c; }
+.priority-high { background: #f6c23e; color:#000; }
+.priority-medium { background: #4facfe; }
+.priority-low { background: #38f9d7; color:#000; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h3 class="mb-3 text-dark">Live Alert Map</h3>
+    <div id="map"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([0, 0], 2); // default world view
+
+// Add OpenStreetMap tiles
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// Alerts data from Django context
+const alerts = JSON.parse('{{ all_alerts_json|escapejs }}');
+
+// Helper for priority color
+function getPriorityClass(priority){
+    switch(priority.toLowerCase()){
+        case 'critical': return 'priority-critical';
+        case 'high': return 'priority-high';
+        case 'medium': return 'priority-medium';
+        case 'low': return 'priority-low';
+        default: return '';
+    }
+}
+
+// Plot alerts
+alerts.forEach(a => {
+    if(a.location_name !== "Unknown" && a.location_name.lat && a.location_name.lng){
+        const marker = L.circleMarker([a.location_name.lat, a.location_name.lng], {
+            radius: 10,
+            fillColor: '#f03',
+            color: '#fff',
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        }).addTo(map);
+
+        const popupContent = `
+            <div class="alert-popup">
+                <div class="alert-title">${a.title}</div>
+                <div class="alert-desc">${a.description || ''}</div>
+                <span class="alert-priority ${getPriorityClass(a.priority)}">${a.priority}</span>
+            </div>
+        `;
+        marker.bindPopup(popupContent);
+    }
+});
+
+// Fit map to markers
+const group = new L.featureGroup(alerts.map(a=> {
+    if(a.location_name !== "Unknown" && a.location_name.lat && a.location_name.lng){
+        return L.marker([a.location_name.lat, a.location_name.lng]);
+    }
+})).addTo(map);
+map.fitBounds(group.getBounds().pad(0.5));
+</script>
+{% endblock %}

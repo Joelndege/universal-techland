@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tourist Alert System{% endblock %}</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    {% block extra_css %}{% endblock %}
+
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .card {
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px) scale(1.02);
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Mobile sidebar toggle button -->
+    <div class="md:hidden fixed top-4 left-4 z-50">
+        <button id="sidebarToggle" class="text-sky-400 text-2xl">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar fixed left-0 top-0 w-64 h-full bg-[#1e293b] transform -translate-x-full md:translate-x-0 transition-transform duration-300 z-40">
+        <h2 class="text-2xl font-bold text-center mt-5 mb-8 text-sky-400">Tourist Alert</h2>
+        <nav class="flex flex-col">
+            <a href="{% url 'dashboard:dashboard-view' %}" class="flex items-center px-6 py-3 text-[#cbd5e1] hover:bg-[#334155] hover:text-sky-400 transition">
+                <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
+            </a>
+            <a href="{% url 'maps:map-view' %}" class="flex items-center px-6 py-3 text-[#cbd5e1] hover:bg-[#334155] hover:text-sky-400 transition">
+                <i class="fas fa-map-marked-alt mr-3"></i> Map
+            </a>
+            <a href="{% url 'alerts:incident-report-page' %}" class="flex items-center px-6 py-3 text-[#cbd5e1] hover:bg-[#334155] hover:text-sky-400 transition">
+                <i class="fas fa-exclamation-triangle mr-3"></i> Report Alert
+            </a>
+            <a href="{% url 'forum:forum_list' %}" class="flex items-center px-6 py-3 text-[#cbd5e1] hover:bg-[#334155] hover:text-sky-400 transition">
+                <i class="fas fa-comments mr-3"></i> Forum
+            </a>
+            <a href="{% url 'users:user-list' %}" class="flex items-center px-6 py-3 text-[#cbd5e1] hover:bg-[#334155] hover:text-sky-400 transition">
+                <i class="fas fa-users mr-3"></i> Users
+            </a>
+            <a href="{% url 'settings:settings-page' %}" class="flex items-center px-6 py-3 text-[#cbd5e1] hover:bg-[#334155] hover:text-sky-400 transition">
+                <i class="fas fa-cogs mr-3"></i> Settings
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main content wrapper -->
+    <div class="flex-1 flex flex-col ml-0 md:ml-64 transition-all duration-300">
+
+        <!-- Topbar -->
+        <header class="topbar bg-[#1e293b] flex justify-between items-center p-4 md:p-6 border-b border-[#334155]">
+            <h1 class="text-xl font-semibold">{% block page_title %}Dashboard{% endblock %}</h1>
+            <div class="flex items-center">
+                <span class="mr-4 hidden sm:inline">Welcome, {{ request.user.username }}</span>
+                <a href="{% url 'logout' %}" class="text-red-400 hover:text-red-600"><i class="fas fa-sign-out-alt"></i></a>
+            </div>
+        </header>
+
+        <!-- Page content -->
+        <main class="flex-1 p-6 md:p-8 overflow-y-auto">
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+    <!-- JavaScript for sidebar toggle -->
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebarToggle');
+
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+
+</body>
+</html>

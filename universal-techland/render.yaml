@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: tourist-alert-system
+    runtime: docker
+    region: frankfurt
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      # Django security
+      - key: SECRET_KEY
+        value: "<your-secret-key>"  # Replace with your actual secret
+        sync: false
+      - key: DEBUG
+        value: "False"
+        sync: false
+      - key: ALLOWED_HOSTS
+        value: "0.0.0.0,localhost,127.0.0.1,.onrender.com"
+        sync: false
+
+      # Database (PostGIS)
+      - key: DB_NAME
+        value: "touristalert"
+        sync: false
+      - key: DB_USER
+        value: "user"
+        sync: false
+      - key: DB_PASSWORD
+        value: "password"
+        sync: false
+      - key: DB_HOST
+        value: "localhost"
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+        sync: false
+
+      # Redis / Celery
+      - key: REDIS_URL
+        value: "redis://localhost:6379/0"
+        sync: false
+
+      # Firebase credentials
+      - key: FIREBASE_CREDENTIALS_PATH
+        value: "/app/firebase_credentials.json"
+        sync: false

@@ -1,0 +1,27 @@
+{% extends "base.html" %}  <!-- Optional: if you have a base template -->
+
+{% block content %}
+<h2>Report an Incident</h2>
+
+<form method="POST" action="{% url 'alerts:incident-report-api' %}">
+    {% csrf_token %}
+    <label>Incident Text:</label><br>
+    <input type="text" name="text" placeholder="Describe the incident" required><br><br>
+
+    <label>Latitude:</label><br>
+    <input type="text" name="lat" placeholder="Latitude" required><br><br>
+
+    <label>Longitude:</label><br>
+    <input type="text" name="lng" placeholder="Longitude" required><br><br>
+
+    <label>Name (optional):</label><br>
+    <input type="text" name="name" placeholder="Location name"><br><br>
+
+    <button type="submit">Report Incident</button>
+</form>
+
+
+{% if message %}
+    <p>{{ message }}</p>
+{% endif %}
+{% endblock %}

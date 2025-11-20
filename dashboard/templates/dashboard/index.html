@@ -1,0 +1,1522 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Tourist Alert System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+ integrity="sha256-sA+zrr2iU9MwF2A+Vdk3QEL7H1kX5DkM3qzZQ1H+9oM=" crossorigin=""/>
+
+<style>
+/* =========================
+   FUTURISTIC DASHBOARD STYLES
+========================= */
+
+:root {
+    --primary-cyan: #00ffff;
+    --primary-blue: #0080ff;
+    --secondary-purple: #8000ff;
+    --accent-pink: #ff0080;
+    --dark-bg: #0a0a0a;
+    --darker-bg: #050505;
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --card-border: rgba(0, 255, 255, 0.2);
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --glow-cyan: 0 0 20px rgba(0, 255, 255, 0.3);
+    --glow-blue: 0 0 20px rgba(0, 128, 255, 0.3);
+    --glow-purple: 0 0 20px rgba(128, 0, 255, 0.3);
+}
+
+/* Stats Cards */
+.stats-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    margin-bottom: 30px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 15px;
+    min-width: 180px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.stat-card:hover::before {
+    left: 100%;
+}
+
+.stat-card:hover {
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+    transform: translateY(-3px);
+}
+
+.stat-card.default { border-color: var(--primary-cyan); }
+.stat-card.critical { border-color: #ff4444; }
+.stat-card.warning { border-color: #ffaa00; }
+.stat-card.success { border-color: #44ff44; }
+
+.stat-card .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.stat-card.default .stat-icon {
+    background: linear-gradient(45deg, var(--primary-cyan), var(--primary-blue));
+    box-shadow: var(--glow-cyan);
+}
+
+.stat-card.critical .stat-icon {
+    background: linear-gradient(45deg, #ff4444, #ff6666);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+}
+
+.stat-card.warning .stat-icon {
+    background: linear-gradient(45deg, #ffaa00, #ffcc00);
+    box-shadow: 0 0 20px rgba(255, 170, 0, 0.3);
+}
+
+.stat-card.success .stat-icon {
+    background: linear-gradient(45deg, #44ff44, #66ff66);
+    box-shadow: 0 0 20px rgba(68, 255, 68, 0.3);
+}
+
+.stat-card .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: 'Orbitron', monospace;
+    margin-bottom: 3px;
+    color: var(--text-primary);
+}
+
+.stat-card .stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Main Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.dashboard-main {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.dashboard-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* Radar Interface */
+.radar-container {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 15px;
+    padding: 25px;
+    position: relative;
+    overflow: hidden;
+}
+
+.radar-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.05), transparent);
+    transition: left 0.5s ease;
+}
+
+.radar-container:hover::before {
+    left: 100%;
+}
+
+.radar-title {
+    font-size: 20px;
+    font-weight: 600;
+    font-family: 'Orbitron', monospace;
+    color: var(--primary-cyan);
+    margin-bottom: 20px;
+    text-shadow: var(--glow-cyan);
+}
+
+.radar-map-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
+    border: 1px solid var(--card-border);
+}
+
+.radar-overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.radar-sweep-arm {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sweep-hand {
+    position: absolute;
+    width: 50%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary-cyan), transparent);
+    transform-origin: 0% 50%;
+    animation: sweep 4s linear infinite;
+    box-shadow: 0 0 15px var(--primary-cyan), 0 0 30px var(--primary-cyan);
+    z-index: 10;
+}
+
+@keyframes sweep {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.danger-marker {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #ff0000;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+    animation: danger-blink 1.5s infinite;
+    z-index: 5;
+    pointer-events: auto;
+}
+
+@keyframes danger-blink {
+    0%, 50% { opacity: 1; transform: scale(1); }
+    25%, 75% { opacity: 0.3; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.radar-controls {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.radar-btn {
+    background: rgba(10, 20, 40, 0.8);
+    border: 1px solid var(--primary-cyan);
+    color: var(--primary-cyan);
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Orbitron', monospace;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+.radar-btn:hover {
+    background: rgba(0, 255, 255, 0.2);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.radar-info {
+    background: rgba(10, 20, 40, 0.8);
+    border: 1px solid var(--primary-cyan);
+    border-radius: 10px;
+    padding: 15px;
+    width: 100%;
+    max-width: 500px;
+    margin-top: 20px;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.radar-info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.radar-info-row:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.radar-info-label {
+    color: var(--primary-cyan);
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.radar-info-value {
+    color: var(--text-primary);
+    font-size: 12px;
+}
+
+/* Danger Search Widget */
+.danger-search-widget {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 15px 20px;
+    box-shadow: var(--glow-cyan);
+    transition: all 0.3s ease;
+}
+
+.danger-search-widget:hover {
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+}
+
+.radar-scanner {
+    width: 50px;
+    height: 50px;
+    position: relative;
+    display: inline-block;
+}
+
+.radar-circle {
+    width: 100%;
+    height: 100%;
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 50%;
+    position: relative;
+    background: radial-gradient(circle, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
+}
+
+.radar-sweep {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+}
+
+.radar-sweep::before {
+    content: '';
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.4), rgba(0, 255, 255, 0.8));
+    transform-origin: right center;
+    animation: radar-sweep 2s linear infinite;
+}
+
+.radar-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--primary-cyan);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px var(--primary-cyan), 0 0 20px var(--primary-cyan);
+}
+
+.radar-pulse {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: 1px solid rgba(0, 255, 255, 0.5);
+    animation: radar-pulse 2s linear infinite;
+}
+
+@keyframes radar-sweep {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes radar-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+.radar-scanner.critical .radar-circle { border-color: rgba(255, 68, 68, 0.3); }
+.radar-scanner.critical .radar-sweep::before { background: linear-gradient(90deg, transparent, rgba(255, 68, 68, 0.4), rgba(255, 68, 68, 0.8)); }
+.radar-scanner.critical .radar-dot { background: #ff4444; box-shadow: 0 0 10px #ff4444, 0 0 20px #ff4444; }
+.radar-scanner.critical .radar-pulse { border-color: rgba(255, 68, 68, 0.5); }
+
+.radar-scanner.high .radar-circle { border-color: rgba(255, 170, 0, 0.3); }
+.radar-scanner.high .radar-sweep::before { background: linear-gradient(90deg, transparent, rgba(255, 170, 0, 0.4), rgba(255, 170, 0, 0.8)); }
+.radar-scanner.high .radar-dot { background: #ffaa00; box-shadow: 0 0 10px #ffaa00, 0 0 20px #ffaa00; }
+.radar-scanner.high .radar-pulse { border-color: rgba(255, 170, 0, 0.5); }
+
+.radar-scanner.medium .radar-circle { border-color: rgba(255, 204, 0, 0.3); }
+.radar-scanner.medium .radar-sweep::before { background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.4), rgba(255, 204, 0, 0.8)); }
+.radar-scanner.medium .radar-dot { background: #ffcc00; box-shadow: 0 0 10px #ffcc00, 0 0 20px #ffcc00; }
+.radar-scanner.medium .radar-pulse { border-color: rgba(255, 204, 0, 0.5); }
+
+.danger-status {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.danger-distance {
+    font-size: 12px;
+    color: var(--text-primary);
+    opacity: 0.8;
+}
+
+/* Alerts Table */
+.alerts-table-container {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 15px;
+    padding: 25px;
+    overflow-x: auto;
+}
+
+.alerts-table-title {
+    font-size: 20px;
+    font-weight: 600;
+    font-family: 'Orbitron', monospace;
+    color: var(--primary-cyan);
+    margin-bottom: 20px;
+    text-shadow: var(--glow-cyan);
+}
+
+.alerts-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.alerts-table th {
+    background: rgba(0, 255, 255, 0.1);
+    color: var(--primary-cyan);
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.alerts-table td {
+    padding: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.alerts-table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.alerts-table tbody tr:hover {
+    background: rgba(0, 255, 255, 0.05);
+    transform: translateX(5px);
+}
+
+.priority-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.priority-badge:hover {
+    transform: scale(1.1);
+}
+
+.priority-badge.critical {
+    background: linear-gradient(45deg, #ff4444, #ff6666);
+    color: white;
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.priority-badge.high {
+    background: linear-gradient(45deg, #ffaa00, #ffcc00);
+    color: white;
+    box-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+}
+
+.priority-badge.medium {
+    background: linear-gradient(45deg, #ffcc00, #ffee00);
+    color: #333;
+    box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+}
+
+.priority-badge.low {
+    background: linear-gradient(45deg, #44ff44, #66ff66);
+    color: #333;
+    box-shadow: 0 0 10px rgba(68, 255, 68, 0.5);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+    background: linear-gradient(45deg, #44ff44, #66ff66);
+    color: #333;
+}
+
+.status-badge.pending {
+    background: linear-gradient(45deg, #ffaa00, #ffcc00);
+    color: #333;
+}
+
+.status-badge.resolved {
+    background: linear-gradient(45deg, #888, #aaa);
+    color: white;
+}
+
+/* Sidebar Panels */
+.sidebar-panel {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 15px;
+    padding: 25px;
+}
+
+.sidebar-panel-title {
+    font-size: 18px;
+    font-weight: 600;
+    font-family: 'Orbitron', monospace;
+    color: var(--primary-cyan);
+    margin-bottom: 20px;
+    text-shadow: var(--glow-cyan);
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 250px;
+    margin-bottom: 20px;
+}
+
+/* Activity Timeline */
+.activity-timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.activity-timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(0, 255, 255, 0.3);
+    border-radius: 1px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+    transition: transform 0.3s ease;
+}
+
+.timeline-item:hover {
+    transform: translateX(5px);
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary-cyan);
+    border: 2px solid var(--dark-bg);
+    box-shadow: var(--glow-cyan);
+    transition: transform 0.3s ease;
+}
+
+.timeline-item:hover::before {
+    transform: scale(1.5);
+}
+
+.timeline-time {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.timeline-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.timeline-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.quick-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.quick-action-btn:hover {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+    transform: translateY(-3px);
+}
+
+.quick-action-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: var(--primary-cyan);
+    transition: transform 0.3s ease;
+}
+
+.quick-action-btn:hover .quick-action-icon {
+    transform: scale(1.2);
+}
+
+.quick-action-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        flex-direction: row;
+        gap: 10px;
+        padding-bottom: 5px;
+    }
+
+    .stat-card {
+        padding: 12px;
+        min-width: 140px;
+    }
+
+    .stat-card .stat-value {
+        font-size: 20px;
+    }
+
+    .stat-card .stat-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+    }
+
+    .radar-map-container {
+        height: 300px;
+    }
+
+    .danger-search-widget {
+        padding: 12px 15px;
+    }
+
+    .danger-distance {
+        display: none;
+    }
+
+    .radar-controls {
+        gap: 10px;
+    }
+
+    .radar-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+    }
+
+    .alerts-table-container {
+        padding: 20px;
+    }
+
+    .alerts-table th,
+    .alerts-table td {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .quick-action-btn {
+        padding: 15px;
+    }
+}
+
+/* Mobile Header Fixes */
+@media (max-width: 480px) {
+
+    /* ---------------------------
+       MAIN CONTENT AREA
+    ---------------------------- */
+    .content-area,
+    .main-content,
+    body {
+        width: 100% !important;
+      
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow-x: wrap !important;
+        box-sizing: border-box;
+    }
+
+    /* ---------------------------
+       DASHBOARD HEADER FIX
+    ---------------------------- */
+    .dashboard-header {
+        width: 600px !important;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0px 0px !important;
+       margin-left: 0 !important;
+        margin-top: 60px; /* leave space for toggle */
+        flex-wrap: wrap !important;
+    }
+/* Radar Interface */
+.radar-container {
+ width: 550px;
+}
+
+    .dashboard-header > div {
+        width: auto !important;
+        max-width: 100% !important;
+    }
+
+    /* ---------------------------
+       STATS CARDS FIX
+    ---------------------------- */
+    .stats-grid {
+       width: 580px !important;
+    }
+
+    .stats-grid::-webkit-scrollbar {
+        display: none;
+    }
+
+    .stat-card {
+        padding: 8px;
+        min-width: 120px;
+        flex-shrink: 0;
+    }
+
+    .stat-card .stat-value {
+        font-size: 15px;
+    }
+
+    .stat-card .stat-icon {
+        width: 26px;
+        height: 26px;
+        font-size: 11px;
+    }
+
+    .stat-card .stat-label {
+        font-size: 10px;
+    }
+  
+
+
+    /* ---------------------------
+       RADAR MAP FIX
+    ---------------------------- */
+    .radar-map-container {
+        width: 100% !important;
+        height: 240px !important;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    .radar-map-container img,
+    .radar-map-container iframe {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+    }
+
+    /* ---------------------------
+       ALERTS TABLE FIX
+    ---------------------------- */
+    .alerts-table-container {
+        width: 100%;
+        padding: 10px;
+        overflow-x: none;
+    }
+
+    .alerts-table th,
+    .alerts-table td {
+        padding: 8px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    /* ---------------------------
+       SIDEBAR PANEL FIX
+    ---------------------------- */
+    .sidebar-panel {
+        padding: 15px;
+        width: 100%;
+    }
+
+    /* ---------------------------
+       QUICK ACTIONS FIX
+    ---------------------------- */
+    .quick-actions {
+        width: 100%;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+}
+
+
+/* Loading Animation */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 10, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    border-radius: 15px;
+    color: var(--primary-cyan);
+    font-family: 'Orbitron', monospace;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(0, 255, 255, 0.3);
+    border-top: 3px solid var(--primary-cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Spinning Radar Animation */
+.spinning-radar {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 15;
+}
+
+.spinning-radar-circle {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 2px solid rgba(0, 255, 255, 0.4);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.spinning-radar-sweep {
+    position: absolute;
+    width: 50%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.8), rgba(0, 255, 255, 0.4));
+    transform-origin: right center;
+    animation: spinning-radar-sweep 3s linear infinite;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+
+@keyframes spinning-radar-sweep {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinning-radar-dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--primary-cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 15px var(--primary-cyan), 0 0 30px var(--primary-cyan);
+    animation: spinning-radar-pulse 2s infinite;
+}
+
+@keyframes spinning-radar-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 0.7;
+    }
+}
+@media (max-width: 480px) {
+    .main-content {
+        transform: scale(1.20) impoetant;
+        transform-origin: top center important;
+        width: 100% important;
+    }
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Header Section -->
+ <div class="dashboard-header" 
+     style="
+        width: 100%; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        margin-top: 60px; 
+        margin-bottom: 20px; 
+        padding: 0 10px;
+        box-sizing: border-box;
+        flex-wrap: wrap;
+     ">
+
+    <!-- LEFT SIDE -->
+    <div style="text-align: left; flex: 1 1 50%; min-width: 200px;">
+        <h1 style="
+            font-size: 28px; 
+            font-weight: 700; 
+            font-family: 'Orbitron', monospace; 
+            background: linear-gradient(45deg, var(--primary-cyan), var(--primary-blue)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            margin: 0;">
+            DASHBOARD OVERVIEW
+        </h1>
+
+        <p style="color: var(--text-secondary); margin: 5px 0 0 0; font-size: 14px;">
+            Real-time security monitoring
+        </p>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="danger-search-widget" 
+         style="
+            display: flex; 
+            flex-direction: column; 
+            align-items: flex-end; 
+            flex: 1 1 50%; 
+            min-width: 200px;
+            margin-top: 10px;
+         ">
+
+        <div id="radar-scanner" class="radar-scanner" title="Scanning for threats">
+            <div class="radar-circle"></div>
+            <div class="radar-sweep"></div>
+            <div class="radar-dot"></div>
+            <div class="radar-pulse"></div>
+        </div>
+
+        <div style="text-align: right;">
+            <div id="danger-status" class="danger-status">Scanning area for threats...</div>
+            <div id="danger-distance" class="danger-distance">Range: 50km</div>
+        </div>
+    </div>
+
+</div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid" style="width: 100%; overflow-x: auto;">
+        <div class="stat-card default">
+            <div class="stat-icon">
+                <i class="fas fa-bell"></i>
+            </div>
+            <div class="stat-value">{{ total_alerts }}</div>
+            <div class="stat-label">Total Alerts</div>
+        </div>
+        <div class="stat-card critical">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="stat-value">{{ critical_alerts }}</div>
+            <div class="stat-label">Critical Alerts</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-icon">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="stat-value">{{ active_locations }}</div>
+            <div class="stat-label">Active Locations</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-icon">
+                <i class="fas fa-server"></i>
+            </div>
+            <div class="stat-value">{{ system_status }}</div>
+            <div class="stat-label">System Status</div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+        <!-- Left Column -->
+        <div class="dashboard-main">
+            <!-- Radar Interface -->
+            <div class="radar-container">
+                <div class="radar-title">
+                    <i class="fas fa-satellite-dish" style="margin-right: 10px;"></i>
+                    LIVE RADAR INTERFACE
+                </div>
+                <div class="radar-map-container">
+                    <div id="map"></div>
+                    <div class="radar-overlay">
+                        <div class="radar-sweep-arm">
+                            <div class="sweep-hand"></div>
+                        </div>
+                        <!-- Danger markers will be added here by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="radar-info">
+                    <div class="radar-info-row">
+                        <div class="radar-info-label">STATUS:</div>
+                        <div class="radar-info-value"><span style="color: var(--primary-cyan);">●</span> ACTIVE</div>
+                    </div>
+                    <div class="radar-info-row">
+                        <div class="radar-info-label">LOCATION:</div>
+                        <div class="radar-info-value" id="location-display">Acquiring...</div>
+                    </div>
+                    <div class="radar-info-row">
+                        <div class="radar-info-label">DANGER ZONES:</div>
+                        <div class="radar-info-value" id="danger-count">3 detected</div>
+                    </div>
+                    <div class="radar-info-row">
+                        <div class="radar-info-label">RADAR RANGE:</div>
+                        <div class="radar-info-value">5 km</div>
+                    </div>
+                </div>
+
+                <div class="radar-controls">
+                    <button class="radar-btn" id="zoom-in">Zoom In</button>
+                    <button class="radar-btn" id="zoom-out">Zoom Out</button>
+                    <button class="radar-btn" id="scan-now">Scan Now</button>
+                    <button class="radar-btn" id="toggle-map">Toggle Map</button>
+                    <button class="radar-btn" id="refresh-osint" onclick="refreshOSINTAlerts()">Refresh News</button>
+                </div>
+            </div>
+
+            <!-- Recent Alerts Table -->
+            <div class="alerts-table-container">
+                <div class="alerts-table-title">
+                    <i class="fas fa-list" style="margin-right: 10px;"></i>
+                    RECENT ALERTS
+                </div>
+                <table class="alerts-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Priority</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsTableBody">
+                    {% for alert in recent_alerts %}
+                    <tr>
+                        <td>{{ alert.title }}</td>
+                        <td>
+                            <span class="priority-badge {{ alert.priority|lower }}">
+                                {{ alert.priority|title }}
+                            </span>
+                        </td>
+                        <td>{{ alert.location_name }}</td>
+                        <td>
+                            <span class="status-badge {{ alert.status|lower }}">
+                                {{ alert.status|title }}
+                            </span>
+                        </td>
+                        <td>{{ alert.created_at|timesince }} ago</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 30px;">
+                            No alerts found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="dashboard-sidebar">
+            <!-- Status Distribution -->
+            <div class="sidebar-panel">
+                <div class="sidebar-panel-title">
+                    <i class="fas fa-chart-pie" style="margin-right: 10px;"></i>
+                    Alert Distribution
+                </div>
+                <div class="chart-container">
+                    <canvas id="statusDistributionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Activity Timeline -->
+            <div class="sidebar-panel">
+                <div class="sidebar-panel-title">
+                    <i class="fas fa-history" style="margin-right: 10px;"></i>
+                    Recent Activity
+                </div>
+                <div class="activity-timeline">
+                    {% for activity in recent_activity %}
+                    <div class="timeline-item">
+                        <div class="timeline-time">{{ activity.created_at|timesince }} ago</div>
+                        <div class="timeline-title">
+                            <i class="fas fa-bell" style="margin-right: 5px; color: var(--primary-cyan);"></i>
+                            {{ activity.title }}
+                        </div>
+                        <div class="timeline-desc">{{ activity.location_name }}</div>
+                    </div>
+                    {% empty %}
+                    <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
+                        No recent activity
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="sidebar-panel">
+                <div class="sidebar-panel-title">
+                    <i class="fas fa-bolt" style="margin-right: 10px;"></i>
+                    Quick Action
+                </div>
+                <div class="quick-actions">
+                  <div class="quick-action-btn" onclick="window.location.href='/alerts/report/form/'">
+                    <div class="quick-action-icon">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div class="quick-action-label">New Alert</div>
+                </div>
+
+                  
+
+                </div>
+            </div>
+        </div>
+    </div>
+   <footer class="footer" style="text-align: center;">
+    <p>© 2025 Universal TechLand. All Rights Reserved.</p>
+</footer>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Dashboard JavaScript for Tourist Alert System
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Leaflet map with user's location
+    var map = L.map('map').setView([51.505, -0.09], 8);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Radar is now fixed on top of the map, centered
+    var radarSweepElement = document.querySelector('.sweep-hand');
+
+    // Position radar sweep at the center of the map overlay
+    function positionRadarAtCenter() {
+        radarSweepElement.style.position = 'absolute';
+        radarSweepElement.style.left = '50%';
+        radarSweepElement.style.top = '50%';
+        radarSweepElement.style.transformOrigin = '0% 50%';
+        radarSweepElement.style.transform = 'translate(-50%, -50%)';
+    }
+
+    // Initialize radar position
+    positionRadarAtCenter();
+
+    // Try to get user's real location
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            userLat = position.coords.latitude;
+            userLng = position.coords.longitude;
+
+            // Center map on user's location
+            map.setView([userLat, userLng], 10);
+
+            // Add user location marker
+            var userMarker = L.marker([userLat, userLng], {
+                icon: L.divIcon({
+                    className: 'user-location-marker',
+                    html: '<div style="width: 12px; height: 12px; background: #00ffff; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 10px #00ffff;"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                })
+            }).addTo(map);
+            userMarker.bindPopup('Your Location');
+
+            // Map is centered on user location, radar is fixed at center
+
+            // Generate random danger markers within 300km radius
+            generateDangerMarkers(userLat, userLng, 300);
+
+        }, function(error) {
+            console.log('Geolocation error:', error);
+            // Fallback to default location and generate markers
+            userLat = 51.505;
+            userLng = -0.09;
+            generateDangerMarkers(userLat, userLng, 300);
+        });
+    } else {
+        // Fallback for browsers without geolocation
+        userLat = 51.505;
+        userLng = -0.09;
+        generateDangerMarkers(userLat, userLng, 300);
+    }
+
+    function generateDangerMarkers(centerLat, centerLng, radiusKm) {
+        var markers = [];
+        var numMarkers = Math.floor(Math.random() * 8) + 3; // 3-10 markers
+
+        for (var i = 0; i < numMarkers; i++) {
+            // Generate random point within radius
+            var angle = Math.random() * 2 * Math.PI;
+            var distance = Math.random() * radiusKm;
+
+            // Convert to lat/lng offset (approximate)
+            var latOffset = (distance / 111.32) * Math.cos(angle); // 1 degree lat ≈ 111.32 km
+            var lngOffset = (distance / (111.32 * Math.cos(centerLat * Math.PI / 180))) * Math.sin(angle);
+
+            var markerLat = centerLat + latOffset;
+            var markerLng = centerLng + lngOffset;
+
+            // Create danger marker on map
+            var mapMarker = L.marker([markerLat, markerLng], {
+                icon: L.divIcon({
+                    className: 'danger-map-marker',
+                    html: '<div style="width: 8px; height: 8px; background: #ff0000; border-radius: 50%; border: 1px solid #fff; box-shadow: 0 0 8px #ff0000;"></div>',
+                    iconSize: [8, 8],
+                    iconAnchor: [4, 4]
+                })
+            }).addTo(map);
+            mapMarker.bindPopup('Danger Zone - High Risk Area');
+
+            // Create overlay marker for radar effect
+            createOverlayMarker(markerLat, markerLng, centerLat, centerLng);
+        }
+    }
+
+    function createOverlayMarker(markerLat, markerLng, centerLat, centerLng) {
+        // Calculate position relative to map center for overlay
+        var mapBounds = map.getBounds();
+        var mapCenter = map.getCenter();
+
+        // Convert lat/lng to pixel coordinates relative to map center
+        var markerPoint = map.latLngToContainerPoint([markerLat, markerLng]);
+        var centerPoint = map.latLngToContainerPoint([centerLat, centerLng]);
+
+        var relativeX = markerPoint.x - centerPoint.x;
+        var relativeY = markerPoint.y - centerPoint.y;
+
+        // Scale to fit within radar overlay (assuming 400px container)
+        var scale = 180 / Math.max(Math.abs(relativeX), Math.abs(relativeY), 100); // 180px radius
+        var overlayX = relativeX * scale;
+        var overlayY = relativeY * scale;
+
+        // Create overlay marker
+        var overlayMarker = document.createElement('div');
+        overlayMarker.className = 'danger-marker';
+        overlayMarker.style.left = 'calc(50% + ' + overlayX + 'px)';
+        overlayMarker.style.top = 'calc(50% + ' + overlayY + 'px)';
+        overlayMarker.title = 'Danger Zone Detected';
+
+        document.querySelector('.radar-overlay').appendChild(overlayMarker);
+    }
+
+    // Initialize Chart.js for status distribution
+    var ctx = document.getElementById('statusDistributionChart').getContext('2d');
+    var statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Active', 'Resolved', 'Pending'],
+            datasets: [{
+                data: [12, 8, 3],
+                backgroundColor: [
+                    '#00ffff',
+                    '#44ff44',
+                    '#ffaa00'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#ffffff'
+                    }
+                }
+            }
+        }
+    });
+
+    // Radar scanner animation
+    function updateRadarScanner() {
+        var scanner = document.getElementById('radar-scanner');
+        var status = document.getElementById('danger-status');
+
+        // Simulate different threat levels
+        var threatLevels = ['low', 'medium', 'high', 'critical'];
+        var currentLevel = threatLevels[Math.floor(Math.random() * threatLevels.length)];
+
+        scanner.className = 'radar-scanner ' + currentLevel;
+
+        switch(currentLevel) {
+            case 'low':
+                status.textContent = 'Area secure - no threats detected';
+                break;
+            case 'medium':
+                status.textContent = 'Minor threats detected';
+                break;
+            case 'high':
+                status.textContent = 'High threat level - exercise caution';
+                break;
+            case 'critical':
+                status.textContent = 'CRITICAL: Immediate danger detected!';
+                break;
+        }
+    }
+
+    // Update radar scanner every 3 seconds
+    setInterval(updateRadarScanner, 3000);
+
+    // Initial update
+    updateRadarScanner();
+
+    // Button event handlers
+    document.getElementById('zoom-in').addEventListener('click', function() {
+        map.zoomIn();
+    });
+
+    document.getElementById('zoom-out').addEventListener('click', function() {
+        map.zoomOut();
+    });
+
+    document.getElementById('scan-now').addEventListener('click', function() {
+        updateRadarScanner();
+        // Add visual feedback
+        this.textContent = 'Scanning...';
+        setTimeout(() => {
+            this.textContent = 'Scan Now';
+        }, 2000);
+    });
+
+    document.getElementById('toggle-map').addEventListener('click', function() {
+        var mapContainer = document.getElementById('map');
+        if (mapContainer.style.display === 'none') {
+            mapContainer.style.display = 'block';
+            this.textContent = 'Toggle Map';
+        } else {
+            mapContainer.style.display = 'none';
+            this.textContent = 'Show Map';
+        }
+    });
+
+    // Refresh OSINT alerts
+    window.refreshOSINTAlerts = function() {
+        fetch('/api/alerts/refresh-osint/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('OSINT alerts refreshed:', data);
+            // Reload the page to show new alerts
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error refreshing OSINT alerts:', error);
+        });
+    };
+
+    // Create new alert function
+    window.createNewAlert = function() {
+        window.location.href = '/alerts/create/';
+    };
+
+    // Export report function
+    window.exportReport = function() {
+        // Simple export functionality - in a real app, this would generate a PDF or CSV
+        alert('Export functionality would generate a comprehensive security report here.');
+    };
+
+    // Add fade-in animation to the page
+    document.body.classList.add('fade-in');
+});
+
+// Add some CSS animations
+const style = document.createElement('style');
+style.textContent = `
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.btn-cyber {
+    background: linear-gradient(45deg, #00ffff, #0080ff);
+    border: none;
+    color: #000;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.btn-cyber:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+}
+
+.btn-cyber-outline {
+    background: transparent;
+    border: 2px solid #00ffff;
+    color: #00ffff;
+    padding: 10px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.btn-cyber-outline:hover {
+    background: rgba(0, 255, 255, 0.1);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

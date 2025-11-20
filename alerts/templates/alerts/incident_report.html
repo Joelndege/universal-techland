@@ -1,0 +1,17 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Incident Report{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-bold mb-6 text-center">Incident Report</h2>
+        <p class="mb-4">Welcome! Use the form page to submit an incident report.</p>
+        <div class="text-center">
+            <a href="{% url 'alerts:incident-report-form' %}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                Go to Report Form
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
