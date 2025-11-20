@@ -1,5 +1,1 @@
-<<<<<<< HEAD
-web: gunicorn project.wsgi:application --log-file -
-=======
-web: gunicorn project.wsgi:application
->>>>>>> 34d11be4380f282ec45e2e3440b2c3465b77a311
+web: gunicorn project.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 30 --keep-alive 2 --max-requests 100 --max-requests-jitter 10

@@ -1,21 +1,27 @@
-from pathlib import Path
+"""
+Django settings for TouristAlertSystem project.
+Optimized for Render deployment with memory constraints.
+"""
+
 import os
+from pathlib import Path
 import dj_database_url
 
-# BASE DIRECTORY
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-placeholder-key')
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-placeholder-key-change-in-production')
 
-# Allow ALL hosts locally, but allow Render domain in production
-# Allow ALL hosts locally, but allow Render domain in production
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com').split(',')
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-# APPLICATIONS
+# Allowed hosts - Render provides .onrender.com domain
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com').split(',')
+
+# Application definition
 INSTALLED_APPS = [
-    # Django default apps
+    # Django core
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -23,7 +29,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Project apps
+    # Third-party
+    'rest_framework',
+    'whitenoise.runserver_nostatic',  # For development static files
+
+    # Project apps (optimized list)
     'dashboard',
     'authentication',
     'alerts',
@@ -33,24 +43,12 @@ INSTALLED_APPS = [
     'notifications',
     'settings',
     'forum',
-
-    # 3rd-party
-    'rest_framework',
 ]
 
-REST_FRAMEWORK = {
-    "DEFAULT_RENDERER_CLASSES": (
-        "rest_framework.renderers.JSONRenderer",
-    )
-}
-
-# Custom User
-AUTH_USER_MODEL = "users.User"
-
-# MIDDLEWARE
+# Middleware (optimized order for performance)
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # static files
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Must be after security, before others
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -59,11 +57,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# URL CONFIG
 ROOT_URLCONF = 'project.urls'
-WSGI_APPLICATION = 'project.wsgi.application'
 
-# TEMPLATES
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -80,11 +75,14 @@ TEMPLATES = [
     },
 ]
 
-# DATABASE (Render PostgreSQL or SQLite fallback)
-DATABASE_URL = os.getenv("DATABASE_URL")
+WSGI_APPLICATION = 'project.wsgi.application'
+
+# Database
+# Render PostgreSQL or SQLite fallback
+DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
     DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, conn_health_checks=True)
     }
 else:
     DATABASES = {
@@ -94,40 +92,126 @@ else:
         }
     }
 
-# PASSWORD VALIDATORS
-AUTH_PASSWORD_VALIDATORS = []
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
 
-# INTERNATIONALIZATION
+# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
+USE_L10N = True
 USE_TZ = True
 
-# STATIC FILES CONFIG (Render)
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Simple static files storage (NO compression to avoid the error)
-STATICFILES_STORAGE = "whitenoise.storage.StaticFilesStorage"
+# WhiteNoise configuration - optimized for Render
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Or if you want compression without the manifest issues:
-# STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+# Skip compression for binary files to prevent UnicodeDecodeError
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = [
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico',
+    'woff', 'woff2', 'ttf', 'eot', 'mp4', 'webm', 'mp3'
+]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
-# Skip compression for binary files to avoid UnicodeDecodeError
-WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'woff', 'woff2', 'ttf', 'eot']
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# MEDIA
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Custom user model
+AUTH_USER_MODEL = 'users.User'
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# REST Framework configuration
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+}
 
-# NOTIFICATIONS API KEY
-FCM_API_KEY = os.getenv("FCM_API_KEY", "")
+# Logging configuration for Render debugging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
 
-# AI / NLP SETTINGS
-NLP_MODEL_PATH = os.getenv("NLP_MODEL_PATH", BASE_DIR / 'core' / 'models')
-RISK_THRESHOLD = int(os.getenv("RISK_THRESHOLD", 70))
+# Security settings for production
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+
+# Performance optimizations
+USE_TZ = True
+USE_I18N = True
+
+# Cache settings (optional, for future optimization)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
+
+# Email settings (placeholder)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# FCM API Key (if used)
+FCM_API_KEY = os.environ.get('FCM_API_KEY', '')
+
+# AI/NLP settings (optimized, no heavy loading)
+NLP_MODEL_PATH = BASE_DIR / 'core' / 'models'
+RISK_THRESHOLD = int(os.environ.get('RISK_THRESHOLD', 70))
